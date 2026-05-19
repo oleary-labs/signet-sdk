@@ -1,31 +1,91 @@
 {
   "name": "@oleary-labs/signet-sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Signet DKMS SDK — threshold signing, key management, delegation, and x402 payments",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" },
-    "./session": { "import": "./dist/session.js", "types": "./dist/session.d.ts" },
-    "./request": { "import": "./dist/request.js", "types": "./dist/request.d.ts" },
-    "./keygen": { "import": "./dist/keygen.js", "types": "./dist/keygen.d.ts" },
-    "./types": { "import": "./dist/types.js", "types": "./dist/types.d.ts" },
-    "./jwks": { "import": "./dist/jwks.js", "types": "./dist/jwks.d.ts" },
-    "./oauth": { "import": "./dist/oauth.js", "types": "./dist/oauth.d.ts" },
-    "./bootstrap": { "import": "./dist/bootstrap.js", "types": "./dist/bootstrap.d.ts" },
-    "./authkey-session": { "import": "./dist/authkey-session.js", "types": "./dist/authkey-session.d.ts" },
-    "./proof": { "import": "./dist/proof.js", "types": "./dist/proof.d.ts" },
-    "./server-prover": { "import": "./dist/server-prover.js", "types": "./dist/server-prover.d.ts" },
-    "./witness": { "import": "./dist/witness.js", "types": "./dist/witness.d.ts" },
-    "./jwt": { "import": "./dist/jwt.js", "types": "./dist/jwt.d.ts" },
-    "./admin": { "import": "./dist/admin.js", "types": "./dist/admin.d.ts" },
-    "./delegate": { "import": "./dist/delegate.js", "types": "./dist/delegate.d.ts" },
-    "./scopedSign": { "import": "./dist/scopedSign.js", "types": "./dist/scopedSign.d.ts" },
-    "./frostVerify": { "import": "./dist/frostVerify.js", "types": "./dist/frostVerify.d.ts" },
-    "./x402": { "import": "./dist/x402.js", "types": "./dist/x402.d.ts" },
-    "./userop": { "import": "./dist/userop.js", "types": "./dist/userop.d.ts" },
-    "./bundler": { "import": "./dist/bundler.js", "types": "./dist/bundler.d.ts" }
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./session": {
+      "import": "./dist/session.js",
+      "types": "./dist/session.d.ts"
+    },
+    "./request": {
+      "import": "./dist/request.js",
+      "types": "./dist/request.d.ts"
+    },
+    "./keygen": {
+      "import": "./dist/keygen.js",
+      "types": "./dist/keygen.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types.js",
+      "types": "./dist/types.d.ts"
+    },
+    "./jwks": {
+      "import": "./dist/jwks.js",
+      "types": "./dist/jwks.d.ts"
+    },
+    "./oauth": {
+      "import": "./dist/oauth.js",
+      "types": "./dist/oauth.d.ts"
+    },
+    "./bootstrap": {
+      "import": "./dist/bootstrap.js",
+      "types": "./dist/bootstrap.d.ts"
+    },
+    "./authkey-session": {
+      "import": "./dist/authkey-session.js",
+      "types": "./dist/authkey-session.d.ts"
+    },
+    "./proof": {
+      "import": "./dist/proof.js",
+      "types": "./dist/proof.d.ts"
+    },
+    "./server-prover": {
+      "import": "./dist/server-prover.js",
+      "types": "./dist/server-prover.d.ts"
+    },
+    "./witness": {
+      "import": "./dist/witness.js",
+      "types": "./dist/witness.d.ts"
+    },
+    "./jwt": {
+      "import": "./dist/jwt.js",
+      "types": "./dist/jwt.d.ts"
+    },
+    "./admin": {
+      "import": "./dist/admin.js",
+      "types": "./dist/admin.d.ts"
+    },
+    "./delegate": {
+      "import": "./dist/delegate.js",
+      "types": "./dist/delegate.d.ts"
+    },
+    "./scopedSign": {
+      "import": "./dist/scopedSign.js",
+      "types": "./dist/scopedSign.d.ts"
+    },
+    "./frostVerify": {
+      "import": "./dist/frostVerify.js",
+      "types": "./dist/frostVerify.d.ts"
+    },
+    "./x402": {
+      "import": "./dist/x402.js",
+      "types": "./dist/x402.d.ts"
+    },
+    "./userop": {
+      "import": "./dist/userop.js",
+      "types": "./dist/userop.d.ts"
+    },
+    "./bundler": {
+      "import": "./dist/bundler.js",
+      "types": "./dist/bundler.d.ts"
+    }
   },
   "files": [
     "dist",
@@ -38,14 +98,20 @@
   },
   "peerDependencies": {
     "viem": ">=2.0.0",
-    "@noir-lang/noir_js": ">=1.0.0-beta.0",
-    "@aztec/bb.js": ">=0.80.0",
-    "@oleary-labs/signet-circuits": ">=0.1.0"
+    "@noir-lang/noir_js": "1.0.0-beta.11",
+    "@aztec/bb.js": "0.82.2",
+    "@oleary-labs/signet-circuits": "0.1.0"
   },
   "peerDependenciesMeta": {
-    "@noir-lang/noir_js": { "optional": true },
-    "@aztec/bb.js": { "optional": true },
-    "@oleary-labs/signet-circuits": { "optional": true }
+    "@noir-lang/noir_js": {
+      "optional": true
+    },
+    "@aztec/bb.js": {
+      "optional": true
+    },
+    "@oleary-labs/signet-circuits": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@noble/curves": "^1.9.0",

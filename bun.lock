@@ -14,8 +14,16 @@
         "viem": "^2.48.0",
       },
       "peerDependencies": {
+        "@aztec/bb.js": "0.82.2",
+        "@noir-lang/noir_js": "1.0.0-beta.11",
+        "@oleary-labs/signet-circuits": "0.1.0",
         "viem": ">=2.0.0",
       },
+      "optionalPeers": [
+        "@aztec/bb.js",
+        "@noir-lang/noir_js",
+        "@oleary-labs/signet-circuits",
+      ],
     },
   },
   "packages": {
