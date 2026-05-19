@@ -31,13 +31,17 @@ export async function generateServerProof(
   bundlerProxyUrl: string,
   jwt: string,
   sessionPubHex: string,
+  apiKey?: string,
 ): Promise<ServerProofResult> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "x-bundler-path": "/v1/prove",
+  };
+  if (apiKey) headers["X-API-Key"] = apiKey;
+
   const res = await fetch(bundlerProxyUrl, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-bundler-path": "/v1/prove",
-    },
+    headers,
     body: JSON.stringify({ jwt, session_pub: sessionPubHex }),
   });
 

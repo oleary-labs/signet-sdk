@@ -3,37 +3,38 @@
   "version": "0.1.0",
   "description": "Signet DKMS SDK — threshold signing, key management, delegation, and x402 payments",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./session": "./src/session.ts",
-    "./request": "./src/request.ts",
-    "./keygen": "./src/keygen.ts",
-    "./types": "./src/types.ts",
-    "./jwks": "./src/jwks.ts",
-    "./oauth": "./src/oauth.ts",
-    "./bootstrap": "./src/bootstrap.ts",
-    "./authkey-session": "./src/authkey-session.ts",
-    "./proof": "./src/proof.ts",
-    "./server-prover": "./src/server-prover.ts",
-    "./witness": "./src/witness.ts",
-    "./jwt": "./src/jwt.ts",
-    "./admin": "./src/admin.ts",
-    "./keygen": "./src/keygen.ts",
-    "./delegate": "./src/delegate.ts",
-    "./scopedSign": "./src/scopedSign.ts",
-    "./frostVerify": "./src/frostVerify.ts",
-    "./x402": "./src/x402.ts",
-    "./userop": "./src/userop.ts",
-    "./bundler": "./src/bundler.ts"
+    ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" },
+    "./session": { "import": "./dist/session.js", "types": "./dist/session.d.ts" },
+    "./request": { "import": "./dist/request.js", "types": "./dist/request.d.ts" },
+    "./keygen": { "import": "./dist/keygen.js", "types": "./dist/keygen.d.ts" },
+    "./types": { "import": "./dist/types.js", "types": "./dist/types.d.ts" },
+    "./jwks": { "import": "./dist/jwks.js", "types": "./dist/jwks.d.ts" },
+    "./oauth": { "import": "./dist/oauth.js", "types": "./dist/oauth.d.ts" },
+    "./bootstrap": { "import": "./dist/bootstrap.js", "types": "./dist/bootstrap.d.ts" },
+    "./authkey-session": { "import": "./dist/authkey-session.js", "types": "./dist/authkey-session.d.ts" },
+    "./proof": { "import": "./dist/proof.js", "types": "./dist/proof.d.ts" },
+    "./server-prover": { "import": "./dist/server-prover.js", "types": "./dist/server-prover.d.ts" },
+    "./witness": { "import": "./dist/witness.js", "types": "./dist/witness.d.ts" },
+    "./jwt": { "import": "./dist/jwt.js", "types": "./dist/jwt.d.ts" },
+    "./admin": { "import": "./dist/admin.js", "types": "./dist/admin.d.ts" },
+    "./delegate": { "import": "./dist/delegate.js", "types": "./dist/delegate.d.ts" },
+    "./scopedSign": { "import": "./dist/scopedSign.js", "types": "./dist/scopedSign.d.ts" },
+    "./frostVerify": { "import": "./dist/frostVerify.js", "types": "./dist/frostVerify.d.ts" },
+    "./x402": { "import": "./dist/x402.js", "types": "./dist/x402.d.ts" },
+    "./userop": { "import": "./dist/userop.js", "types": "./dist/userop.d.ts" },
+    "./bundler": { "import": "./dist/bundler.js", "types": "./dist/bundler.d.ts" }
   },
   "files": [
+    "dist",
     "src"
   ],
   "scripts": {
+    "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "prepublishOnly": "bun run build"
   },
   "peerDependencies": {
     "viem": ">=2.0.0",
@@ -55,5 +56,9 @@
     "typescript": "^5.0.0",
     "viem": "^2.48.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oleary-labs/signet-sdk"
+  }
 }

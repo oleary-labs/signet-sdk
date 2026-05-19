@@ -254,7 +254,11 @@ export async function x402Fetch(
   const paidRes = await fetch(url, {
     ...init,
     headers: {
-      ...Object.fromEntries(new Headers(init.headers).entries()),
+      ...((): Record<string, string> => {
+        const h: Record<string, string> = {}
+        new Headers(init.headers).forEach((v, k) => { h[k] = v })
+        return h
+      })(),
       "Payment-Signature": paymentSignature,
     },
   });

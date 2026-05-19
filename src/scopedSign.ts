@@ -118,6 +118,7 @@ export async function signTypedData(
     body: JSON.stringify({
       group_id: groupId.toLowerCase(),
       key_id: keyId,
+      key_suffix: keySuffix,
       curve,
       payload: {
         scheme: "eip712",
