@@ -18,7 +18,7 @@ Optional peer dependencies (only needed if you call the corresponding subpaths):
 | `viem` >=2.0.0 | `./userop`, `./bundler`, `./x402`, anything that touches EVM ABI encoding | strongly recommended for most consumers |
 | `@noir-lang/noir_js` 1.0.0-beta.11 | `./proof`, `./witness` (in-browser ZK proving) | optional — only needed if you prove client-side |
 | `@aztec/bb.js` 0.82.2 | `./proof`, `./witness` | optional — same as above |
-| `@oleary-labs/signet-circuits` 0.1.0 | `./proof`, `./witness` | optional — bump to `^0.3.0` when convenient (server-side proving via the bundler always uses the latest) |
+| `@oleary-labs/signet-circuits` ^0.3.0 | `./proof`, `./witness` | optional — server-side proving via `signet-min-bundler`'s `POST /v1/prove` doesn't require this peer at all |
 
 Most consumers delegate ZK proof generation to `signet-min-bundler`'s `POST /v1/prove` (see `./server-prover`) and don't install the Noir/bb peers at all.
 
@@ -95,6 +95,8 @@ Functions that hit a signing endpoint accept a curve string. Pass one of the thr
 Mismatches between what you pass here and the key's actual scheme will fail at the node, not in the client.
 
 The session itself (the ephemeral keypair from `./session`) and auth-key certificates always use local ECDSA — there's no curve parameter for those; only the threshold-signing operations take one.
+
+For the canonical per-curve reference (algorithms, storage prefixes, response shapes, picking guidance), see [`signet-protocol/docs/CURVES.md`](https://github.com/oleary-labs/signet-protocol/blob/main/docs/CURVES.md).
 
 ## Example flows
 

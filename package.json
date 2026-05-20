@@ -100,7 +100,7 @@
     "viem": ">=2.0.0",
     "@noir-lang/noir_js": "1.0.0-beta.11",
     "@aztec/bb.js": "0.82.2",
-    "@oleary-labs/signet-circuits": "0.1.0"
+    "@oleary-labs/signet-circuits": "^0.3.0"
   },
   "peerDependenciesMeta": {
     "@noir-lang/noir_js": {
