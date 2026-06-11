@@ -1,6 +1,6 @@
 {
   "name": "@oleary-labs/signet-sdk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Signet DKMS SDK — threshold signing, key management, delegation, and x402 payments",
   "type": "module",
   "main": "./dist/index.js",

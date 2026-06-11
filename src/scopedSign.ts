@@ -6,8 +6,10 @@
  * before computing the hash and signing.
  */
 
+import { hashTypedData } from "viem";
 import type { SessionKeypair, IdTokenClaims } from "./types";
-import { signKeygenRequest } from "./request";
+import { signSignRequest } from "./request";
+import { hexToBytes } from "./session";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -93,17 +95,25 @@ export async function signTypedData(
   claims: IdTokenClaims,
   identity?: string,
 ): Promise<ScopedSignResult> {
-  // Build session-authenticated request (no message hash — payload is sent separately)
-  // The canonical hash must use the full sub-key ID (identity + suffix).
+  // The canonical request hash must use the full sub-key ID (identity + suffix).
   // Extract suffix from keyId: "oauth:iss:sub:suffix" → suffix is last segment
   // The identity param is "iss:sub", so we need to add the suffix.
   const keyParts = keyId.split(":");
   const keySuffix = keyParts.length > 1 ? keyParts[keyParts.length - 1] : undefined;
 
-  const signReq = await signKeygenRequest(
+  // Compute the EIP-712 hash locally and bind it into the session request
+  // signature. The nodes recompute hashTypedData from the payload and verify
+  // the request signature against it — without this binding, a malicious
+  // initiator could substitute any payload matching the key's scope.
+  const payloadHash = hexToBytes(
+    hashTypedData(typedData as Parameters<typeof hashTypedData>[0]).slice(2),
+  );
+
+  const signReq = await signSignRequest(
     sessionKeypair,
     claims,
     groupId,
+    payloadHash,
     keySuffix,
     identity,
   );
