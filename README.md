@@ -65,7 +65,7 @@ The SDK ships with 19 subpath exports. Import the one you need; the entry point 
 | `./keygen` | Threshold keygen request (`keygen(config, keypair, claims, keySuffix?, identity?, curve?, scope?)`) |
 | `./admin` | Admin API auth — bootstrap-group FROST signing for admin endpoints |
 | `./delegate` | Mint and redeem delegation JWTs (`requestDelegation`, `authenticateWithDelegation`) for autonomous-agent flows |
-| `./scopedSign` | EIP-712 structured signing with scoped sub-keys (`signTypedData(...)`; `buildEIP712Scope`; `CHAIN_PRESETS`) |
+| `./scopedSign` | EIP-712 structured signing with scoped sub-keys (`signTypedData(...)`; `buildEIP712ScopeForTypedData` / `buildEIP712Scope` / `eip712TypeHash`; `CHAIN_PRESETS`) |
 | `./frostVerify` | Client-side FROST Schnorr verification (RFC 9591) — useful for tests and round-trip checks |
 
 ### ERC-4337 and payments
@@ -131,11 +131,20 @@ console.log(result.ethereumAddress, result.groupPublicKey);
 ```ts
 import { keygen } from "@oleary-labs/signet-sdk/keygen";
 import { requestDelegation, authenticateWithDelegation } from "@oleary-labs/signet-sdk/delegate";
-import { signTypedData, buildEIP712Scope, CHAIN_PRESETS } from "@oleary-labs/signet-sdk/scopedSign";
-import { x402Fetch } from "@oleary-labs/signet-sdk/x402";
+import { signTypedData, buildEIP712ScopeForTypedData, CHAIN_PRESETS } from "@oleary-labs/signet-sdk/scopedSign";
+import { buildTransferAuthorization, x402Fetch } from "@oleary-labs/signet-sdk/x402";
 
-// Operator side: mint a scoped sub-key bound to USDC on Base
-const scope = buildEIP712Scope(8453, CHAIN_PRESETS[0].verifyingContract);
+// Operator side: mint a scoped sub-key bound to USDC on Base AND the
+// TransferWithAuthorization method. A 0x03 scope binds chainId +
+// verifyingContract + the EIP-712 primary type, so the key cannot sign a
+// different method (e.g. an EIP-2612 permit) on the same token. Derive the
+// scope from a sample typed-data payload (message values are irrelevant):
+const preset = CHAIN_PRESETS[0]; // USDC on Base
+const zero = "0x0000000000000000000000000000000000000000";
+const sample = buildTransferAuthorization(
+  zero, zero, "0", preset.verifyingContract, preset.chainId, preset.eip712Name, preset.eip712Version,
+);
+const scope = buildEIP712ScopeForTypedData(sample);
 const subkey = await keygen(config, keypair, claims, /* keySuffix */ "agent-1", /* identity */ undefined, "ecdsa_secp256k1", scope);
 
 // Mint a delegation JWT for the agent

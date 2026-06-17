@@ -6,7 +6,8 @@
  * before computing the hash and signing.
  */
 
-import { hashTypedData } from "viem";
+import { hashTypedData, keccak256, stringToBytes } from "viem";
+import type { Hex } from "viem";
 import type { SessionKeypair, IdTokenClaims } from "./types";
 import { signSignRequest } from "./request";
 import { hexToBytes } from "./session";
@@ -39,14 +40,65 @@ export interface ScopedSignResult {
 // Scope construction
 // ---------------------------------------------------------------------------
 
+type EIP712Types = Record<string, ReadonlyArray<{ name: string; type: string }>>;
+
 /**
- * Build an EIP-712 domain scope (scheme 0x03).
+ * Encode an EIP-712 type per the spec: the primary type's definition
+ * followed by its referenced struct types in alphabetical order, e.g.
+ * `TransferWithAuthorization(address from,address to,uint256 value,...)`.
+ * Matches go-ethereum's `apitypes.TypeHash` encoding used by the node, so
+ * the resulting typeHash byte-matches what the node verifies.
+ */
+function encodeEIP712Type(primaryType: string, types: EIP712Types): string {
+  const deps = new Set<string>();
+  const visit = (t: string) => {
+    const base = t.replace(/(\[\d*\])+$/, ""); // strip array suffixes
+    if (!types[base] || deps.has(base)) return;
+    deps.add(base);
+    for (const f of types[base]) visit(f.type);
+  };
+  for (const f of types[primaryType] ?? []) visit(f.type);
+
+  const sorted = [...deps].filter((d) => d !== primaryType).sort();
+  const encodeOne = (t: string) =>
+    `${t}(${types[t].map((f) => `${f.type} ${f.name}`).join(",")})`;
+  return [primaryType, ...sorted].map(encodeOne).join("");
+}
+
+/**
+ * EIP-712 typeHash: keccak256(encodeType(primaryType)). This is the value a
+ * 0x03 scope binds, and the same value the verifying contract uses — so a
+ * key scoped to one method (e.g. TransferWithAuthorization) cannot sign a
+ * different method on the same contract (e.g. permit).
+ */
+export function eip712TypeHash(primaryType: string, types: EIP712Types): Hex {
+  if (!types[primaryType]) {
+    throw new Error(`primaryType "${primaryType}" not declared in types`);
+  }
+  return keccak256(stringToBytes(encodeEIP712Type(primaryType, types)));
+}
+
+/**
+ * Build an EIP-712 domain+type scope (scheme 0x03).
  *
  * Format: 0x03 | chainId (8 bytes, uint64 BE) | verifyingContract (20 bytes)
- * Total: 29 bytes.
+ *         | typeHash (32 bytes). Total: 61 bytes.
+ *
+ * `typeHash` is keccak256(encodeType(primaryType)) — see {@link eip712TypeHash}.
+ * Binding the type (not just the domain) prevents a key authorized for one
+ * typed-data method from signing a different method on the same contract.
  */
-export function buildEIP712Scope(chainId: number, verifyingContract: string): string {
-  const buf = new Uint8Array(29);
+export function buildEIP712Scope(
+  chainId: number,
+  verifyingContract: string,
+  typeHash: Hex,
+): string {
+  const th = typeHash.startsWith("0x") ? typeHash.slice(2) : typeHash;
+  if (th.length !== 64) {
+    throw new Error(`typeHash must be 32 bytes (64 hex chars), got ${th.length}`);
+  }
+
+  const buf = new Uint8Array(61);
   buf[0] = 0x03;
 
   // chainId as 8-byte big-endian
@@ -61,7 +113,29 @@ export function buildEIP712Scope(chainId: number, verifyingContract: string): st
     buf[9 + i] = parseInt(addr.slice(i * 2, i * 2 + 2), 16);
   }
 
+  // typeHash as 32 bytes
+  for (let i = 0; i < 32; i++) {
+    buf[29 + i] = parseInt(th.slice(i * 2, i * 2 + 2), 16);
+  }
+
   return "0x" + Array.from(buf).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Convenience: build a 0x03 scope directly from an EIP-712 typed-data sample,
+ * deriving chainId, verifyingContract, and typeHash from it. Any sample with
+ * the intended domain + primary type works (message values are irrelevant to
+ * the scope). This is the recommended way to scope a key for a given method.
+ */
+export function buildEIP712ScopeForTypedData(
+  typedData: Pick<EIP712TypedData, "domain" | "types" | "primaryType">,
+): string {
+  const typeHash = eip712TypeHash(typedData.primaryType, typedData.types);
+  return buildEIP712Scope(
+    typedData.domain.chainId,
+    typedData.domain.verifyingContract,
+    typeHash,
+  );
 }
 
 // ---------------------------------------------------------------------------
