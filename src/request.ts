@@ -8,8 +8,8 @@
  * Signature: 64-byte [R || S] secp256k1 ECDSA (no recovery byte)
  */
 
-import type { SessionKeypair, IdTokenClaims } from "./types";
-import { bytesToHex } from "./session";
+import type { SessionKeypair, IdTokenClaims } from "./types.js";
+import { bytesToHex } from "./session.js";
 
 /** Signed request ready to POST to a node. */
 export interface SignedRequest {
@@ -24,15 +24,51 @@ export interface SignedRequest {
 /** Signed request with message_hash for /v1/sign. */
 export interface SignedSignRequest extends SignedRequest {
   message_hash: string;
+  /**
+   * Curve to sign with. OMITTING THIS IS RARELY WHAT YOU WANT: the node
+   * defaults to FROST Schnorr when `curve` is absent, so an ECDSA key posted
+   * without it comes back as `ethereum_signature` (Schnorr) rather than
+   * `ecdsa_signature`, and the mismatch only surfaces downstream — often
+   * on-chain. Pass "ecdsa_secp256k1" for any key you intend to verify with
+   * `ecrecover`.
+   */
+  curve?: string;
 }
+
+/** Namespaces the node prepends itself, after verifying the request signature. */
+const RESERVED_KEY_NAMESPACES = ["authkey:", "oauth:", "resolver:"];
 
 /**
  * Derive the key ID that the node will resolve for this session.
  *
  * For OAuth sessions: iss:sub or iss:sub:suffix
  * e.g. https://accounts.google.com:114810956681671373980
+ *
+ * IMPORTANT: this returns the *logical* key id — the value the client signs
+ * over. The node verifies the request signature against exactly this string and
+ * only afterwards prepends the storage namespace ("authkey:", "oauth:", or a
+ * resolver prefix); see `validateSessionRequest` in node/handlers.go, whose
+ * comment reads "The prefix is internal — clients never see it".
+ *
+ * So for an auth-key session with identity "my-backend", pass "my-backend" and
+ * NOT "authkey:my-backend", even though the key is stored under the latter.
+ * Getting this wrong produces a signature over the wrong string, which the node
+ * rejects as a sanitized `401 {"error":"unauthorized"}` with no further detail —
+ * indistinguishable from a bad auth key or an expired session.
+ *
+ * @throws if `identity` carries a namespace the node would add itself.
  */
 export function deriveKeyId(claims: IdTokenClaims, keySuffix?: string, identity?: string): string {
+  if (identity) {
+    const reserved = RESERVED_KEY_NAMESPACES.find((p) => identity.startsWith(p));
+    if (reserved) {
+      throw new Error(
+        `identity must not include the "${reserved}" namespace — the node adds it ` +
+          `after verifying the request signature. Pass ` +
+          `"${identity.slice(reserved.length)}" instead of "${identity}".`,
+      );
+    }
+  }
   const base = identity ?? `${claims.iss}:${claims.sub}`;
   return keySuffix ? `${base}:${keySuffix}` : base;
 }
@@ -78,6 +114,7 @@ export async function signSignRequest(
   messageHash: Uint8Array,
   keySuffix?: string,
   identity?: string,
+  curve?: string,
 ): Promise<SignedSignRequest> {
   const normalizedGroupId = groupId.toLowerCase();
   const keyId = deriveKeyId(claims, keySuffix, identity);
@@ -101,6 +138,7 @@ export async function signSignRequest(
     nonce,
     timestamp,
     message_hash: bytesToHex(messageHash),
+    ...(curve ? { curve } : {}),
   };
 }
 

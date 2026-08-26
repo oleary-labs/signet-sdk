@@ -7,7 +7,7 @@
  * - Key ID (kid) from the header for JWKS lookup
  */
 
-import type { IdTokenClaims } from "./types";
+import type { IdTokenClaims } from "./types.js";
 
 /** Parsed JWT components needed for proof generation. */
 export interface ParsedJWT {

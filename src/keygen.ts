@@ -6,8 +6,8 @@
  * in a previous session.
  */
 
-import type { SessionKeypair, IdTokenClaims } from "./types";
-import { signKeygenRequest } from "./request";
+import type { SessionKeypair, IdTokenClaims } from "./types.js";
+import { signKeygenRequest } from "./request.js";
 
 export interface KeygenConfig {
   nodeUrls: string[];

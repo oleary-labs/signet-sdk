@@ -18,8 +18,8 @@ import {
   createPublicClient,
   http,
 } from "viem";
-import type { SessionKeypair, IdTokenClaims } from "./types";
-import { signSignRequest } from "./request";
+import type { SessionKeypair, IdTokenClaims } from "./types.js";
+import { signSignRequest } from "./request.js";
 import {
   sendUserOp as bundlerSendUserOp,
   getUserOpReceipt as bundlerGetUserOpReceipt,
@@ -28,7 +28,7 @@ import {
   getPaymasterData,
   applyPaymasterSponsorship,
   type PaymasterContext,
-} from "./bundler";
+} from "./bundler.js";
 
 // ---------------------------------------------------------------------------
 // Types

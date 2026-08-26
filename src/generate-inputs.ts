@@ -1,4 +1,4 @@
-import { generatePartialSHA256 } from './partial-sha';
+import { generatePartialSHA256 } from './partial-sha.js';
 
 type GenerateInputsParams = {
   jwt: string;

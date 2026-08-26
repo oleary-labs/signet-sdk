@@ -8,7 +8,7 @@
  */
 
 import { type Address, type Hex, concat } from "viem";
-import type { PackedUserOperation } from "./userop";
+import type { PackedUserOperation } from "./userop.js";
 
 // ---------------------------------------------------------------------------
 // Types

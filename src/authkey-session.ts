@@ -10,12 +10,15 @@
  * 2. POST /v1/auth with the certificate to establish a session
  * 3. Use the session key for subsequent keygen/sign requests (same as OAuth flow)
  *
- * The identity becomes the key namespace: keys are stored as "authkey:<identity>"
- * (or "authkey:<identity>:<suffix>" with key_suffix).
+ * The identity becomes the key namespace: keys are STORED as "authkey:<identity>"
+ * (or "authkey:<identity>:<suffix>" with key_suffix). Note that this is the
+ * storage form only — requests must be signed over the un-namespaced
+ * "<identity>[:<suffix>]", because the node adds the prefix after verifying the
+ * signature. Pass the bare identity to deriveKeyId / signSignRequest.
  */
 
-import type { SessionKeypair } from "./types";
-import { bytesToHex } from "./session";
+import type { SessionKeypair } from "./types.js";
+import { bytesToHex } from "./session.js";
 
 export interface AuthKeyCertConfig {
   /** Base URL or proxy URL for the node */
@@ -138,7 +141,7 @@ export async function authenticateWithSchnorrAuthKey(
   claims: { iss: string; sub: string },
   expiry?: number,
 ): Promise<AuthKeyCertResult> {
-  const { signSignRequest } = await import("./request");
+  const { signSignRequest } = await import("./request.js");
 
   const normalizedGroupId = targetGroupId.toLowerCase();
   const certExpiry = expiry ?? Math.floor(Date.now() / 1000) + 3600;
@@ -154,7 +157,7 @@ export async function authenticateWithSchnorrAuthKey(
   // Threshold-sign the cert hash via bootstrap group
   const signReq = await signSignRequest(
     bootstrapSessionKeypair,
-    claims as unknown as import("./types").IdTokenClaims,
+    claims as unknown as import("./types.js").IdTokenClaims,
     config.bootstrapGroup,
     certHash,
   );

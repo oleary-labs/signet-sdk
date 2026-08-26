@@ -6,7 +6,7 @@
  * and any issuer with a standard JWKS endpoint.
  */
 
-import type { JWKSKey } from "./types";
+import type { JWKSKey } from "./types.js";
 
 const GOOGLE_JWKS_URI = "https://www.googleapis.com/oauth2/v3/certs";
 

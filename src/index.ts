@@ -14,30 +14,31 @@
  */
 
 // Core
-export * from "./types";
-export * from "./session";
-export * from "./request";
-export * from "./keygen";
+export * from "./types.js";
+export * from "./session.js";
+export * from "./request.js";
+export * from "./signature.js";
+export * from "./keygen.js";
 
 // Auth (lightweight — no WASM)
-export * from "./oauth";
-export * from "./jwt";
-export * from "./jwks";
-export * from "./bootstrap";
-export * from "./authkey-session";
-export * from "./server-prover";
+export * from "./oauth.js";
+export * from "./jwt.js";
+export * from "./jwks.js";
+export * from "./bootstrap.js";
+export * from "./authkey-session.js";
+export * from "./server-prover.js";
 
 // Admin
-export * from "./admin";
+export * from "./admin.js";
 
 // Signing + Delegation
-export * from "./delegate";
-export * from "./scopedSign";
-export * from "./frostVerify";
+export * from "./delegate.js";
+export * from "./scopedSign.js";
+export * from "./frostVerify.js";
 
 // x402
-export * from "./x402";
+export * from "./x402.js";
 
 // ERC-4337
-export * from "./userop";
-export * from "./bundler";
+export * from "./userop.js";
+export * from "./bundler.js";

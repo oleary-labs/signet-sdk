@@ -67,6 +67,7 @@ The SDK ships with 19 subpath exports. Import the one you need; the entry point 
 | `./delegate` | Mint and redeem delegation JWTs (`requestDelegation`, `authenticateWithDelegation`) for autonomous-agent flows |
 | `./scopedSign` | EIP-712 structured signing with scoped sub-keys (`signTypedData(...)`; `buildEIP712ScopeForTypedData` / `buildEIP712Scope` / `eip712TypeHash`; `CHAIN_PRESETS`) |
 | `./frostVerify` | Client-side FROST Schnorr verification (RFC 9591) — useful for tests and round-trip checks |
+| `./signature` | EVM signature helpers — `toEvmSignature` (maps `v` from {0,1} to {27,28}) and `eip191Digest` |
 
 ### ERC-4337 and payments
 
@@ -93,6 +94,11 @@ Functions that hit a signing endpoint accept a curve string. Pass one of the thr
 ```
 
 Mismatches between what you pass here and the key's actual scheme will fail at the node, not in the client.
+
+**Always pass it explicitly.** Omitting `curve` does *not* fail — the node
+defaults to FROST Schnorr when it is absent, so an ECDSA key signed without it
+comes back as `ethereum_signature` rather than `ecdsa_signature`. Nothing
+rejects that: the mismatch surfaces downstream, usually on-chain.
 
 The session itself (the ephemeral keypair from `./session`) and auth-key certificates always use local ECDSA — there's no curve parameter for those; only the threshold-signing operations take one.
 
