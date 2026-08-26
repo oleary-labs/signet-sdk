@@ -8,9 +8,10 @@
 
 import { hashTypedData, keccak256, stringToBytes } from "viem";
 import type { Hex } from "viem";
-import type { SessionKeypair, IdTokenClaims } from "./types";
-import { signSignRequest } from "./request";
-import { hexToBytes } from "./session";
+import type { SessionKeypair, IdTokenClaims } from "./types.js";
+import { signSignRequest } from "./request.js";
+import { toEvmSignature } from "./signature.js";
+import { hexToBytes } from "./session.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,8 +32,15 @@ export interface EIP712TypedData {
 }
 
 export interface ScopedSignResult {
-  signature: string;       // raw signature hex
-  ecdsaSignature: string;  // ECDSA-formatted (r, s, v)
+  /** Raw signature hex exactly as the node returned it. */
+  signature: string;
+  /**
+   * ECDSA-formatted (r, s, v), normalized for EVM verifiers: `v` is mapped
+   * into {27,28}. The node emits `v` in {0,1}, which `ecrecover` rejects and
+   * OpenZeppelin `ECDSA.recover` reverts on. Use this field — not `signature`
+   * — for anything that reaches a contract. Absent for FROST curves.
+   */
+  ecdsaSignature: string;
   curve: string;
 }
 
@@ -223,7 +231,11 @@ export async function signTypedData(
   const data = await res.json();
   return {
     signature: data.signature,
-    ecdsaSignature: data.ecdsa_signature,
+    // Normalize v into {27,28} so the value is usable on-chain as-is. FROST
+    // responses carry no ecdsa_signature, so only normalize when present.
+    ecdsaSignature: data.ecdsa_signature
+      ? toEvmSignature(data.ecdsa_signature)
+      : data.ecdsa_signature,
     curve: data.curve ?? curve,
   };
 }

@@ -5,7 +5,7 @@
  * The private key is held in memory only — never persisted.
  */
 
-import type { SessionKeypair } from "./types";
+import type { SessionKeypair } from "./types.js";
 
 /**
  * Generate a new ephemeral secp256k1 session keypair.

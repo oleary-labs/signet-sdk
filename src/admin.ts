@@ -7,9 +7,9 @@
  * group.
  */
 
-import type { SessionKeypair, IdTokenClaims } from "./types";
-import { signSignRequest } from "./request";
-import { bytesToHex } from "./session";
+import type { SessionKeypair, IdTokenClaims } from "./types.js";
+import { signSignRequest } from "./request.js";
+import { bytesToHex } from "./session.js";
 
 export interface AdminAuthConfig {
   nodeProxyUrl: string;

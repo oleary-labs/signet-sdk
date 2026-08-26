@@ -12,11 +12,11 @@
 import { Noir } from "@noir-lang/noir_js";
 import { UltraHonkBackend } from "@aztec/bb.js";
 import { jwt as jwtArtifacts, assertBbJsVersion } from "@oleary-labs/signet-circuits";
-import { decodeIdToken } from "./oauth";
-import { getJWKSKeyForKid, decodeModulusBytes } from "./jwks";
-import { buildFullWitness } from "./witness";
-import { hexToBytes } from "./session";
-import type { IdTokenClaims } from "./types";
+import { decodeIdToken } from "./oauth.js";
+import { getJWKSKeyForKid, decodeModulusBytes } from "./jwks.js";
+import { buildFullWitness } from "./witness.js";
+import { hexToBytes } from "./session.js";
+import type { IdTokenClaims } from "./types.js";
 
 /** Proof generation result. */
 export interface ProofResult {

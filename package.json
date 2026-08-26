@@ -18,6 +18,10 @@
       "import": "./dist/request.js",
       "types": "./dist/request.d.ts"
     },
+    "./signature": {
+      "import": "./dist/signature.js",
+      "types": "./dist/signature.d.ts"
+    },
     "./keygen": {
       "import": "./dist/keygen.js",
       "types": "./dist/keygen.d.ts"

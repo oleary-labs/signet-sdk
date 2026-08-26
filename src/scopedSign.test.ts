@@ -3,7 +3,7 @@ import {
   eip712TypeHash,
   buildEIP712Scope,
   buildEIP712ScopeForTypedData,
-} from "./scopedSign";
+} from "./scopedSign.js";
 
 // Canonical EIP-3009 TransferWithAuthorization typehash, as used by USDC and
 // every EIP-712 verifier. If our encodeType/typeHash matches this, it matches

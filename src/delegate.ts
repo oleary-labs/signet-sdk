@@ -12,8 +12,8 @@
  * 4. Agent signs with the scoped sub-key via the session
  */
 
-import type { SessionKeypair, IdTokenClaims } from "./types";
-import { signKeygenRequest } from "./request";
+import type { SessionKeypair, IdTokenClaims } from "./types.js";
+import { signKeygenRequest } from "./request.js";
 
 // ---------------------------------------------------------------------------
 // Types

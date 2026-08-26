@@ -6,7 +6,7 @@
  * so the client_secret stays server-side.
  */
 
-import type { IdTokenClaims } from "./types";
+import type { IdTokenClaims } from "./types.js";
 
 function base64urlEncode(buf: ArrayBuffer | Uint8Array): string {
   return btoa(String.fromCharCode(...new Uint8Array(buf)))

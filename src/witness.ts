@@ -6,8 +6,8 @@
  * circuit requires.
  */
 
-import { generateInputs } from "./generate-inputs";
-import type { IdTokenClaims } from "./types";
+import { generateInputs } from "./generate-inputs.js";
+import type { IdTokenClaims } from "./types.js";
 
 /** Full witness for the jwt_auth circuit (Prover.toml format). */
 export interface FullCircuitWitness {

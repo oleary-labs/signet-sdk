@@ -8,6 +8,8 @@
  * 4. Encode for `Payment-Signature` header
  */
 
+import { toEvmSignature } from "./signature.js";
+
 // ---------------------------------------------------------------------------
 // Types (matching x402 protocol spec)
 // ---------------------------------------------------------------------------
@@ -141,7 +143,11 @@ export function buildTransferAuthorization(
  *
  * @param accepted - The payment option we're fulfilling
  * @param authorization - The TransferWithAuthorization message fields
- * @param signature - The ECDSA signature (0x-prefixed, 65 bytes)
+ * @param signature - The ECDSA signature (0x-prefixed, 65 bytes). Normalized
+ *   to `v` in {27,28} before it goes into the payload: EIP-3009 settles through
+ *   OpenZeppelin `ECDSA.recover`, which reverts on the {0,1} form the node
+ *   emits. Signatures already in {27,28} pass through untouched, so this is
+ *   safe for any signer — including a non-Signet `signTypedData` callback.
  * @param resourceUrl - The URL of the resource being paid for
  */
 export function buildPaymentPayload(
@@ -162,7 +168,7 @@ export function buildPaymentPayload(
     resource: resourceUrl ? { url: resourceUrl } : undefined,
     accepted,
     payload: {
-      signature,
+      signature: toEvmSignature(signature),
       authorization: {
         from: authorization.from,
         to: authorization.to,

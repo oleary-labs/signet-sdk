@@ -5,8 +5,8 @@
  * bootstrap node to register the session key.
  */
 
-import type { NodeAuthRequest } from "./types";
-import { bytesToHex } from "./session";
+import type { NodeAuthRequest } from "./types.js";
+import { bytesToHex } from "./session.js";
 
 export interface BootstrapConfig {
   groupId: string; // bootstrap group contract address
