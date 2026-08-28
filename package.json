@@ -46,6 +46,10 @@
       "import": "./dist/authkey-session.js",
       "types": "./dist/authkey-session.d.ts"
     },
+    "./resolver-session": {
+      "import": "./dist/resolver-session.js",
+      "types": "./dist/resolver-session.d.ts"
+    },
     "./proof": {
       "import": "./dist/proof.js",
       "types": "./dist/proof.d.ts"

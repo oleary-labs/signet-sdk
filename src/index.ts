@@ -26,6 +26,7 @@ export * from "./jwt.js";
 export * from "./jwks.js";
 export * from "./bootstrap.js";
 export * from "./authkey-session.js";
+export * from "./resolver-session.js";
 export * from "./server-prover.js";
 
 // Admin

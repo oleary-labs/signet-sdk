@@ -24,7 +24,13 @@ export interface AuthResult {
  * Authenticate with all bootstrap nodes.
  *
  * Posts the ZK proof + session public key to each node's /v1/auth.
- * All nodes must accept the session for signing to work.
+ *
+ * One node would be enough: /v1/auth broadcasts a `msgAuth` coord message and
+ * every participant re-verifies the proof and caches the session itself. That
+ * broadcast is asynchronous, so calling all of them is a barrier against
+ * authenticating and immediately signing against a node that has not caught up
+ * — not a consistency requirement. One success therefore means the session is
+ * established; the rest is propagation.
  */
 export async function authenticateWithBootstrap(
   config: BootstrapConfig,
