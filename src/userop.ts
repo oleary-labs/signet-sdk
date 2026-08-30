@@ -20,6 +20,7 @@ import {
 } from "viem";
 import type { SessionKeypair, IdTokenClaims } from "./types.js";
 import { signSignRequest } from "./request.js";
+import { toEvmSignature } from "./signature.js";
 import {
   sendUserOp as bundlerSendUserOp,
   getUserOpReceipt as bundlerGetUserOpReceipt,
@@ -83,7 +84,24 @@ export interface SignetWriteParams {
   value?: bigint;
   callData: Hex;
   sessionKeypair: SessionKeypair;
-  claims: IdTokenClaims;
+  /** OAuth sessions only — the key id is `iss:sub`. Every other scheme: null. */
+  claims: IdTokenClaims | null;
+  /**
+   * The key id base for auth-key certificate, delegation, on-chain resolver and
+   * ZK proof sessions. Pass the identity the node returned from `/v1/auth`
+   * verbatim — for a resolver session that is the opaque subject the resolver
+   * produced, not an address, and not something to reconstruct.
+   */
+  identity?: string;
+  keySuffix?: string;
+  /**
+   * Signing curve. Defaults to FROST Schnorr, which is what `SignetAccount`
+   * verifies. Pass "ecdsa_secp256k1" for an account whose `validateUserOp`
+   * recovers with `ecrecover` — a Safe module, for instance. Get this wrong and
+   * the signature comes back well-formed under the other scheme and reverts
+   * during validation.
+   */
+  curve?: string;
   onStatus?: (status: UserOpStatus) => void;
 }
 
@@ -168,6 +186,9 @@ export async function submitUserOp(
     params.claims,
     config.bootstrapGroup,
     messageHash,
+    params.keySuffix,
+    params.identity,
+    params.curve,
   );
 
   const signRes = await fetch(config.nodeProxyUrl, {
@@ -185,8 +206,20 @@ export async function submitUserOp(
     throw new Error(`Threshold signing failed: ${signRes.status} — ${body}`);
   }
 
-  const { ethereum_signature } = await signRes.json();
-  userOp.signature = ethereum_signature as Hex;
+  // The node emits Schnorr under `ethereum_signature` and ECDSA under
+  // `ecdsa_signature`, keyed off the requested curve. ECDSA additionally
+  // arrives with v in {0,1}, which every EVM verifier rejects — normalize it
+  // before it reaches the account's validateUserOp.
+  const signed = await signRes.json();
+  const isEcdsa = params.curve === "ecdsa_secp256k1";
+  const raw = isEcdsa ? signed.ecdsa_signature : signed.ethereum_signature;
+  if (typeof raw !== "string") {
+    throw new Error(
+      `Threshold signing returned no ${isEcdsa ? "ecdsa_signature" : "ethereum_signature"} ` +
+        `— the key is not a ${isEcdsa ? "ECDSA" : "FROST Schnorr"} key.`,
+    );
+  }
+  userOp.signature = (isEcdsa ? toEvmSignature(raw) : raw) as Hex;
 
   // 7. Submit to bundler
   onStatus?.("submitting");

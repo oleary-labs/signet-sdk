@@ -68,13 +68,13 @@ The SDK ships with 19 subpath exports. Import the one you need; the entry point 
 | `./delegate` | Mint and redeem delegation JWTs (`requestDelegation`, `authenticateWithDelegation`) for autonomous-agent flows |
 | `./scopedSign` | EIP-712 structured signing with scoped sub-keys (`signTypedData(...)`; `buildEIP712ScopeForTypedData` / `buildEIP712Scope` / `eip712TypeHash`; `CHAIN_PRESETS`) |
 | `./frostVerify` | Client-side FROST Schnorr verification (RFC 9591) — useful for tests and round-trip checks |
-| `./signature` | EVM signature helpers — `toEvmSignature` (maps `v` from {0,1} to {27,28}) and `eip191Digest` |
+| `./signature` | EVM signing — `signEvmDigest` (one call: EIP-191 envelope → request signing → POST → `v` normalization), plus its parts `toEvmSignature` and `eip191Digest` |
 
 ### ERC-4337 and payments
 
 | Subpath | Purpose |
 |---|---|
-| `./userop` | Build ERC-4337 v0.7 user operations and FROST-sign them |
+| `./userop` | Build ERC-4337 v0.7 user operations and threshold-sign them (FROST Schnorr, or ECDSA via `curve`) |
 | `./bundler` | JSON-RPC client for `signet-min-bundler` (send/estimate/receipt) |
 | `./x402` | `x402Fetch` — performs the full x402 dance (request → 402 → sign → retry) |
 
@@ -182,6 +182,7 @@ import {
   buildSiweMessage,
   authenticateWithResolver,
 } from "@oleary-labs/signet-sdk/resolver-session";
+import { signEvmDigest } from "@oleary-labs/signet-sdk/signature";
 
 const keypair = await generateSessionKeypair();
 
@@ -214,15 +215,19 @@ const session = await authenticateWithResolver({ groupId, nodeUrl }, params);
 // packs a Safe address into it. Echo it verbatim and store it verbatim; never
 // rebuild the string. You choose the suffix; the subject comes from the
 // session and the "resolver:<addr>:" prefix is never client-side at all.
-const signReq = await signSignRequest(
-  keypair,
-  /* claims    */ null,   // OAuth-only; `identity` supplies the whole key id
-  groupId, messageHash,
-  /* keySuffix */ undefined,
-  /* identity  */ session.identity,
-  /* curve     */ "ecdsa_secp256k1",
+const { signature } = await signEvmDigest(
+  { groupId, nodeUrl },
+  { keypair, hash: messageHash, identity: session.identity },
 );
 ```
+
+`signEvmDigest` is the whole path in one call: it wraps the hash in the
+`personal_sign` envelope (pass `eip191: false` for an EIP-712 or EIP-3009
+digest, which carries its own `\x19\x01` prefix), pins
+`curve: "ecdsa_secp256k1"`, and normalizes `v` into {27,28} before returning.
+Each of those has a failure mode that is invisible in JS and only shows up as a
+reverted transaction. The underlying `signSignRequest` is still exported if you
+need to post the request yourself.
 
 `claims` is `IdTokenClaims | null` on every request-signing entry point. It is
 read only to build the `iss:sub` base of an OAuth key id, so any scheme that
