@@ -63,7 +63,7 @@ The SDK ships with 19 subpath exports. Import the one you need; the entry point 
 
 | Subpath | Purpose |
 |---|---|
-| `./keygen` | Threshold keygen request (`keygen(config, keypair, claims, keySuffix?, identity?, curve?, scope?)`) |
+| `./keygen` | Threshold keygen request (`keygen(config, keypair, claims, keySuffix?, identity?, curve?, scope?)`) — `claims` is nullable; pass `null` when supplying `identity` |
 | `./admin` | Admin API auth — bootstrap-group FROST signing for admin endpoints |
 | `./delegate` | Mint and redeem delegation JWTs (`requestDelegation`, `authenticateWithDelegation`) for autonomous-agent flows |
 | `./scopedSign` | EIP-712 structured signing with scoped sub-keys (`signTypedData(...)`; `buildEIP712ScopeForTypedData` / `buildEIP712Scope` / `eip712TypeHash`; `CHAIN_PRESETS`) |
@@ -215,12 +215,20 @@ const session = await authenticateWithResolver({ groupId, nodeUrl }, params);
 // rebuild the string. You choose the suffix; the subject comes from the
 // session and the "resolver:<addr>:" prefix is never client-side at all.
 const signReq = await signSignRequest(
-  keypair, claims, groupId, messageHash,
+  keypair,
+  /* claims    */ null,   // OAuth-only; `identity` supplies the whole key id
+  groupId, messageHash,
   /* keySuffix */ undefined,
   /* identity  */ session.identity,
   /* curve     */ "ecdsa_secp256k1",
 );
 ```
+
+`claims` is `IdTokenClaims | null` on every request-signing entry point. It is
+read only to build the `iss:sub` base of an OAuth key id, so any scheme that
+passes `identity` — auth-key certificate, delegation token, on-chain resolver,
+ZK proof — passes `null` instead of a stub object of empty strings. Passing
+neither throws rather than deriving `":"`.
 
 **One node is enough.** Nodes are symmetric: `/v1/auth` broadcasts a `msgAuth`
 coord message and every participant independently re-runs the SIWE recovery and

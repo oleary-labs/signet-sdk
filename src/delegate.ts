@@ -62,7 +62,7 @@ export async function requestDelegation(
   curve: string,
   expiresIn: number,
   sessionKeypair: SessionKeypair,
-  claims: IdTokenClaims,
+  claims: IdTokenClaims | null,
   identity?: string,
 ): Promise<DelegationResult> {
   // Build session-authenticated request.

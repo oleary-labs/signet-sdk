@@ -56,9 +56,19 @@ const RESERVED_KEY_NAMESPACES = ["authkey:", "oauth:", "resolver:"];
  * rejects as a sanitized `401 {"error":"unauthorized"}` with no further detail —
  * indistinguishable from a bad auth key or an expired session.
  *
+ * `claims` is only read to build the `iss:sub` base for an OAuth session. Any
+ * scheme that supplies `identity` — auth-key certificate, delegation token,
+ * on-chain resolver, ZK proof — derives the whole key id from it, so those
+ * callers pass `null` rather than a stub object of empty strings.
+ *
  * @throws if `identity` carries a namespace the node would add itself.
+ * @throws if neither `claims` nor `identity` is supplied.
  */
-export function deriveKeyId(claims: IdTokenClaims, keySuffix?: string, identity?: string): string {
+export function deriveKeyId(
+  claims: IdTokenClaims | null,
+  keySuffix?: string,
+  identity?: string,
+): string {
   if (identity) {
     const reserved = RESERVED_KEY_NAMESPACES.find((p) => identity.startsWith(p));
     if (reserved) {
@@ -69,7 +79,13 @@ export function deriveKeyId(claims: IdTokenClaims, keySuffix?: string, identity?
       );
     }
   }
-  const base = identity ?? `${claims.iss}:${claims.sub}`;
+  if (!identity && !claims) {
+    throw new Error(
+      "deriveKeyId needs either `claims` (OAuth: the key id is iss:sub) or " +
+        "`identity` (every other scheme: the key id is the identity itself).",
+    );
+  }
+  const base = identity ?? `${claims!.iss}:${claims!.sub}`;
   return keySuffix ? `${base}:${keySuffix}` : base;
 }
 
@@ -81,7 +97,7 @@ export function deriveKeyId(claims: IdTokenClaims, keySuffix?: string, identity?
  */
 export async function signKeygenRequest(
   keypair: SessionKeypair,
-  claims: IdTokenClaims,
+  claims: IdTokenClaims | null,
   groupId: string,
   keySuffix?: string,
   identity?: string,
@@ -109,7 +125,7 @@ export async function signKeygenRequest(
  */
 export async function signSignRequest(
   keypair: SessionKeypair,
-  claims: IdTokenClaims,
+  claims: IdTokenClaims | null,
   groupId: string,
   messageHash: Uint8Array,
   keySuffix?: string,

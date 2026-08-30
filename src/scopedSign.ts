@@ -174,7 +174,7 @@ export async function signTypedData(
   curve: string,
   typedData: EIP712TypedData,
   sessionKeypair: SessionKeypair,
-  claims: IdTokenClaims,
+  claims: IdTokenClaims | null,
   identity?: string,
 ): Promise<ScopedSignResult> {
   // The canonical request hash must use the full sub-key ID (identity + suffix).

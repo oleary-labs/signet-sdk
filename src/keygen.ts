@@ -7,7 +7,7 @@
  */
 
 import type { SessionKeypair, IdTokenClaims } from "./types.js";
-import { signKeygenRequest } from "./request.js";
+import { signKeygenRequest, deriveKeyId } from "./request.js";
 
 export interface KeygenConfig {
   nodeUrls: string[];
@@ -30,7 +30,7 @@ export interface KeygenResult {
 export async function keygen(
   config: KeygenConfig,
   keypair: SessionKeypair,
-  claims: IdTokenClaims,
+  claims: IdTokenClaims | null,
   keySuffix?: string,
   identity?: string,
   curve?: string,
@@ -67,7 +67,8 @@ export async function keygen(
     // Key already exists — node now returns full key info on 409
     const data = await res.json();
     return {
-      keyId: data.key_id ?? `${claims.iss}:${claims.sub}${keySuffix ? `:${keySuffix}` : ""}`,
+      // Older nodes omit key_id on 409; deriveKeyId reproduces what was sent.
+      keyId: data.key_id ?? deriveKeyId(claims, keySuffix, identity),
       ethereumAddress: data.ethereum_address ?? "",
       groupPublicKey: data.public_key ?? "",
       alreadyExisted: true,
