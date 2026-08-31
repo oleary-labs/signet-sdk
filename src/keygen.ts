@@ -8,6 +8,7 @@
 
 import type { SessionKeypair, IdTokenClaims } from "./types.js";
 import { signKeygenRequest, deriveKeyId } from "./request.js";
+import { withNodeFailover, postJson } from "./failover.js";
 
 export interface KeygenConfig {
   nodeUrls: string[];
@@ -38,53 +39,61 @@ export async function keygen(
 ): Promise<KeygenResult> {
   const req = await signKeygenRequest(keypair, claims, config.groupId, keySuffix, identity);
 
-  // Try the first node (keygen only needs to be initiated on one node)
-  const nodeUrl = config.nodeUrls[0];
-  const url = config.proxyEndpoint
-    ? config.proxyEndpoint
-    : `${nodeUrl}/v1/keygen`;
-
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (config.proxyEndpoint) {
-    headers["x-node-url"] = nodeUrl;
-    headers["x-node-path"] = "/v1/keygen";
-  }
-
   // Add optional curve and scope to the request body
   const body: Record<string, unknown> = { ...req };
   if (curve) body.curve = curve;
   if (scope) body.scope = scope;
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
+  // Keygen is initiated on one node, but any node can serve it, so an
+  // unreachable node is worth moving past rather than failing on.
+  //
+  // Failover is safe here because a duplicate is not a second DKG: the
+  // initiating node does not return until every node has acked the start of the
+  // protocol, so a node reached afterwards answers 409 rather than starting a
+  // competing run. That also makes failover *necessary* rather than merely nice
+  // — a request that times out in transit may well have started a DKG, and
+  // without a retry the caller has no way to find out.
+  return withNodeFailover(config.nodeUrls, async (nodeUrl) => {
+    const res = await postJson(nodeUrl, "/v1/keygen", body, config.proxyEndpoint);
 
-  if (res.status === 409) {
-    // Key already exists — node now returns full key info on 409
+    if (res.status === 409) {
+      // Key already exists — node returns full key info on 409.
+      const data = await res.json();
+      const groupPublicKey = data.public_key ?? "";
+
+      // A 409 whose key material is absent is a DKG that has started and not
+      // finished — the ack precedes completion. Returning empty strings here
+      // would read as a successful keygen and fail later at the point of use,
+      // far from the cause. There is no awaitKey on this path, so the honest
+      // answer is to say so and let the caller poll.
+      if (!groupPublicKey) {
+        throw new Error(
+          `Keygen for "${data.key_id ?? deriveKeyId(claims, keySuffix, identity)}" is ` +
+            `already in progress on ${nodeUrl}: the node reported the key exists but ` +
+            `returned no public key, which means the DKG has started and not yet ` +
+            `completed. Retry keygen shortly — a completed run answers 409 with the key.`,
+        );
+      }
+
+      return {
+        // Older nodes omit key_id on 409; deriveKeyId reproduces what was sent.
+        keyId: data.key_id ?? deriveKeyId(claims, keySuffix, identity),
+        ethereumAddress: data.ethereum_address ?? "",
+        groupPublicKey,
+        alreadyExisted: true,
+      };
+    }
+
+    if (!res.ok) {
+      throw new Error(`Keygen failed: ${res.status} — ${await res.text()}`);
+    }
+
     const data = await res.json();
     return {
-      // Older nodes omit key_id on 409; deriveKeyId reproduces what was sent.
-      keyId: data.key_id ?? deriveKeyId(claims, keySuffix, identity),
-      ethereumAddress: data.ethereum_address ?? "",
-      groupPublicKey: data.public_key ?? "",
-      alreadyExisted: true,
+      keyId: data.key_id,
+      ethereumAddress: data.ethereum_address,
+      groupPublicKey: data.public_key,
+      alreadyExisted: false,
     };
-  }
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Keygen failed: ${res.status} — ${body}`);
-  }
-
-  const data = await res.json();
-  return {
-    keyId: data.key_id,
-    ethereumAddress: data.ethereum_address,
-    groupPublicKey: data.public_key,
-    alreadyExisted: false,
-  };
+  });
 }

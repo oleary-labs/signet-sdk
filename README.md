@@ -57,6 +57,7 @@ The SDK ships with 19 subpath exports. Import the one you need; the entry point 
 | `./jwks` | JWKS fetch and key lookup |
 | `./bootstrap` | Bootstrap-group authentication wrapper |
 | `./authkey-session` | Auth-key certificate session — server-side flow that lets a backend authenticate with a long-lived ECDSA key instead of an OAuth bearer token |
+| `./failover` | Transport-tier node failover — retry another node when one is unreachable or 5xx, never on a verdict |
 | `./resolver-session` | On-chain auth resolver session (`onchain_resolver`) — SIWE login where a contract read decides the key namespace, so identity follows the wallet rather than the login provider |
 
 ### Keygen and signing

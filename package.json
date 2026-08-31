@@ -61,6 +61,11 @@
       "import": "./dist/resolver-session.js",
       "default": "./dist/resolver-session.js"
     },
+    "./failover": {
+      "types": "./dist/failover.d.ts",
+      "import": "./dist/failover.js",
+      "default": "./dist/failover.js"
+    },
     "./proof": {
       "types": "./dist/proof.d.ts",
       "import": "./dist/proof.js",

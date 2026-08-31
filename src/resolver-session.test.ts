@@ -142,6 +142,8 @@ const okResponse = () =>
   new Response(JSON.stringify({ identity: "0xSAFE", expires_at: 999 }), { status: 200 });
 const errResponse = (msg: string) =>
   new Response(`resolver auth failed: ${msg}`, { status: 401 });
+/** A node that failed before deciding anything — the only failover trigger. */
+const downResponse = () => new Response("upstream unavailable", { status: 503 });
 
 let signCalls = 0;
 let pinCalls = 0;
@@ -305,4 +307,67 @@ test("surfaces a transport failure as an unknown-code outcome", async () => {
   );
   expect(report.every((o) => o.error?.code === "unknown")).toBe(true);
   expect(report[0].error?.retryable).toBe(false);
+});
+
+// ---------------------------------------------------------------------------
+// Node failover
+// ---------------------------------------------------------------------------
+
+test("moves to the next node when the first never answers", async () => {
+  const result = await authenticateWithResolver(
+    { ...config, failoverNodeUrls: [NODES[1], NODES[2]] },
+    harness((url) => (url.startsWith(NODES[0]) ? downResponse() : okResponse())),
+  );
+  expect(result.nodeUrl).toBe(NODES[1]);
+  expect(signCalls).toBe(1);
+});
+
+// The failure that most looks like it wants another node is the one where
+// another node is wrong: the session has not propagated to THIS node yet.
+test("does not move nodes on a verdict", async () => {
+  await expect(
+    authenticateWithResolver(
+      { ...config, failoverNodeUrls: [NODES[1], NODES[2]] },
+      harness(() => errResponse("resolver did not authorize address 0x1")),
+    ),
+  ).rejects.toThrow(/not_authorized/);
+  expect(posted).toEqual([`${NODES[0]}/v1/auth`]);
+});
+
+test("reports a transport failure as such and reaches the last node", async () => {
+  globalThis.fetch = (async () => {
+    throw new Error("ECONNREFUSED");
+  }) as typeof fetch;
+  try {
+    await authenticateWithResolver(
+      { ...config, failoverNodeUrls: [NODES[1], NODES[2]] },
+      {
+        sessionPubHex: PUB,
+        siwe: SIWE,
+        signMessage: async () => "0x" + "aa".repeat(65),
+        getBlockPin: async () => ({ number: 101, hash: "0x" + "bb".repeat(32) }),
+      },
+    );
+    throw new Error("expected a rejection");
+  } catch (e) {
+    const err = e as { transport: boolean; nodeUrl: string };
+    expect(err.transport).toBe(true);
+    expect(err.nodeUrl).toBe(NODES[2]);
+  }
+});
+
+// A node that never answered has not consumed the pin budget.
+test("the pin budget is per node, not shared across the fleet", async () => {
+  const result = await authenticateWithResolver(
+    { ...config, failoverNodeUrls: [NODES[1]], maxPinRetries: 1 },
+    harness((url) => {
+      if (url.startsWith(NODES[0])) return downResponse();
+      // n1 consumed pin 1. With maxPinRetries 1, n2 gets attempts 2 and 3 —
+      // it would get only one if the budget were shared across the fleet.
+      return pinCalls <= 2 ? errResponse("pinned block 101 too stale (max lag 30)") : okResponse();
+    }),
+  );
+  expect(result.nodeUrl).toBe(NODES[1]);
+  expect(result.pinAttempts).toBe(3);
+  expect(signCalls).toBe(1);
 });

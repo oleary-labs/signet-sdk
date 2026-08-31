@@ -65,6 +65,7 @@
  */
 
 import type { SessionKeypair } from "./types.js";
+import { isTransportStatus } from "./failover.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -105,6 +106,18 @@ export interface ResolverSessionConfig {
    * lives outside the signed message.
    */
   maxPinRetries?: number;
+  /**
+   * Nodes to try, in order, if `nodeUrl` cannot be reached — it refuses the
+   * connection, times out, or answers 5xx/429. Only a node that never produced
+   * a verdict is failed over.
+   *
+   * A verdict is never failed over, and the 401 that looks like it wants to be
+   * is the one case where moving nodes is actively wrong: it means the session
+   * has not propagated to *that* node yet, so the fix is to retry the same node
+   * — or to have used `barrierNodeUrls` in the first place. Every node reads at
+   * the pinned block, so no two of them can disagree about the answer.
+   */
+  failoverNodeUrls?: string[];
 }
 
 /** Fields of the SIWE message the node checks and will reject on. */
@@ -260,12 +273,18 @@ export class ResolverAuthError extends Error {
   readonly status?: number;
   /** The node's raw message, before classification. */
   readonly detail: string;
+  /**
+   * True when the node never produced a verdict — unreachable, or 5xx/429/408.
+   * The only condition under which another node is worth trying.
+   */
+  readonly transport: boolean;
 
   constructor(
     code: ResolverAuthErrorCode,
     nodeUrl: string,
     detail: string,
     status?: number,
+    transport = false,
   ) {
     super(`${nodeUrl}: ${code} — ${detail}`);
     this.name = "ResolverAuthError";
@@ -273,6 +292,7 @@ export class ResolverAuthError extends Error {
     this.nodeUrl = nodeUrl;
     this.detail = detail;
     this.status = status;
+    this.transport = transport;
   }
 
   /** True when refetching the block pin and retrying may succeed. */
@@ -420,33 +440,46 @@ export async function authenticateWithResolver(
   const signature = await params.signMessage(message);
 
   const maxAttempts = (config.maxPinRetries ?? 3) + 1;
+  const nodes = [config.nodeUrl, ...(config.failoverNodeUrls ?? [])];
   let outcome: NodeAuthOutcome | undefined;
+  let pinAttempts = 0;
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const pin = await params.getBlockPin();
-    const request = buildRequest(config.groupId, sessionPubHex, message, signature, pin);
-    outcome = await authWithNode(config.nodeUrl, request, config.proxyEndpoint);
+  // Two loops with different reasons to go round. The outer one moves to
+  // another node when this one never answered; the inner one refetches the
+  // block pin against the *same* node when only the pin was stale. The pin
+  // budget is per node, since a node that has not answered has not consumed it.
+  for (const nodeUrl of nodes) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const pin = await params.getBlockPin();
+      pinAttempts++;
+      const request = buildRequest(config.groupId, sessionPubHex, message, signature, pin);
+      outcome = await authWithNode(nodeUrl, request, config.proxyEndpoint);
 
-    if (outcome.ok) {
-      const barrier = config.barrierNodeUrls?.length
-        ? await Promise.all(
-            config.barrierNodeUrls
-              .filter((url) => url !== config.nodeUrl)
-              .map((url) => authWithNode(url, request, config.proxyEndpoint)),
-          )
-        : undefined;
+      if (outcome.ok) {
+        const barrier = config.barrierNodeUrls?.length
+          ? await Promise.all(
+              config.barrierNodeUrls
+                .filter((url) => url !== nodeUrl)
+                .map((url) => authWithNode(url, request, config.proxyEndpoint)),
+            )
+          : undefined;
 
-      return {
-        identity: outcome.identity as string,
-        expiresAt: outcome.expiresAt as number,
-        nodeUrl: config.nodeUrl,
-        pinAttempts: attempt,
-        ...(barrier ? { barrier } : {}),
-      };
+        return {
+          identity: outcome.identity as string,
+          expiresAt: outcome.expiresAt as number,
+          nodeUrl,
+          pinAttempts,
+          ...(barrier ? { barrier } : {}),
+        };
+      }
+
+      // Only a stale pin is worth another round trip to the same node.
+      if (!outcome.error?.retryable) break;
     }
 
-    // Only a stale pin is worth another round trip.
-    if (!outcome.error?.retryable) break;
+    // A verdict is a verdict — every node reads at the pinned block and would
+    // say the same thing. Only an unanswered request is worth another node.
+    if (!outcome?.error?.transport) break;
   }
 
   throw outcome?.error ??
@@ -538,7 +571,9 @@ async function authWithNode(
       error: new ResolverAuthError(
         "unknown",
         nodeUrl,
-        e instanceof Error ? e.message : String(e),
+        `unreachable: ${e instanceof Error ? e.message : String(e)}`,
+        undefined,
+        true,
       ),
     };
   }
@@ -553,6 +588,7 @@ async function authWithNode(
         nodeUrl,
         body,
         res.status,
+        isTransportStatus(res.status),
       ),
     };
   }

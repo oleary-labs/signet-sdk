@@ -20,6 +20,7 @@
 import { keccak_256 } from "@noble/hashes/sha3";
 import type { SessionKeypair, IdTokenClaims } from "./types.js";
 import { deriveKeyId, signSignRequest } from "./request.js";
+import { withNodeFailover, postJson } from "./failover.js";
 
 /**
  * Convert a node ECDSA signature into the form EVM contracts accept.
@@ -94,6 +95,13 @@ export interface EvmSignConfig {
 	nodeUrl: string;
 	/** CORS proxy. When set, nodeUrl travels in `x-node-url` instead. */
 	proxyEndpoint?: string;
+	/**
+	 * Nodes to try, in order, if `nodeUrl` cannot be reached — it refuses the
+	 * connection, times out, or answers 5xx/429. A verdict is never failed over:
+	 * a 401 means the session has not propagated to *this* node, and the fix is
+	 * to retry the same node rather than move to another.
+	 */
+	failoverNodeUrls?: string[];
 }
 
 export interface EvmSignParams {
@@ -176,32 +184,18 @@ export async function signEvmDigest(
 		"ecdsa_secp256k1",
 	);
 
-	const headers: Record<string, string> = { "Content-Type": "application/json" };
-	let url: string;
-	if (config.proxyEndpoint) {
-		url = config.proxyEndpoint;
-		headers["x-node-url"] = config.nodeUrl;
-		headers["x-node-path"] = "/v1/sign";
-	} else {
-		url = `${config.nodeUrl}/v1/sign`;
-	}
-
-	const res = await fetch(url, {
-		method: "POST",
-		headers,
-		body: JSON.stringify(signReq),
+	const nodes = [config.nodeUrl, ...(config.failoverNodeUrls ?? [])];
+	const data = await withNodeFailover(nodes, async (nodeUrl) => {
+		const res = await postJson(nodeUrl, "/v1/sign", signReq, config.proxyEndpoint);
+		if (!res.ok) {
+			throw new Error(`EVM sign failed: ${res.status} — ${await res.text()}`);
+		}
+		try {
+			return (await res.json()) as Record<string, unknown>;
+		} catch {
+			throw new Error("malformed sign response: 200 with a body that is not JSON");
+		}
 	});
-
-	if (!res.ok) {
-		throw new Error(`EVM sign failed: ${res.status} — ${await res.text()}`);
-	}
-
-	let data: Record<string, unknown>;
-	try {
-		data = await res.json();
-	} catch {
-		throw new Error("malformed sign response: 200 with a body that is not JSON");
-	}
 
 	const sig = data.ecdsa_signature;
 	if (typeof sig !== "string") {
