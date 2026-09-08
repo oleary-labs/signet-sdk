@@ -1,104 +1,137 @@
 {
   "name": "@oleary-labs/signet-sdk",
-  "version": "0.3.0",
-  "description": "Signet DKMS SDK — threshold signing, key management, delegation, and x402 payments",
+  "version": "0.4.0",
+  "description": "Signet DKMS SDK \u2014 threshold signing, key management, delegation, and x402 payments",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "default": "./dist/index.js"
     },
     "./session": {
+      "types": "./dist/session.d.ts",
       "import": "./dist/session.js",
-      "types": "./dist/session.d.ts"
+      "default": "./dist/session.js"
     },
     "./request": {
+      "types": "./dist/request.d.ts",
       "import": "./dist/request.js",
-      "types": "./dist/request.d.ts"
+      "default": "./dist/request.js"
     },
     "./signature": {
+      "types": "./dist/signature.d.ts",
       "import": "./dist/signature.js",
-      "types": "./dist/signature.d.ts"
+      "default": "./dist/signature.js"
     },
     "./keygen": {
+      "types": "./dist/keygen.d.ts",
       "import": "./dist/keygen.js",
-      "types": "./dist/keygen.d.ts"
+      "default": "./dist/keygen.js"
     },
     "./types": {
+      "types": "./dist/types.d.ts",
       "import": "./dist/types.js",
-      "types": "./dist/types.d.ts"
+      "default": "./dist/types.js"
     },
     "./jwks": {
+      "types": "./dist/jwks.d.ts",
       "import": "./dist/jwks.js",
-      "types": "./dist/jwks.d.ts"
+      "default": "./dist/jwks.js"
     },
     "./oauth": {
+      "types": "./dist/oauth.d.ts",
       "import": "./dist/oauth.js",
-      "types": "./dist/oauth.d.ts"
+      "default": "./dist/oauth.js"
     },
     "./bootstrap": {
+      "types": "./dist/bootstrap.d.ts",
       "import": "./dist/bootstrap.js",
-      "types": "./dist/bootstrap.d.ts"
+      "default": "./dist/bootstrap.js"
     },
     "./authkey-session": {
+      "types": "./dist/authkey-session.d.ts",
       "import": "./dist/authkey-session.js",
-      "types": "./dist/authkey-session.d.ts"
+      "default": "./dist/authkey-session.js"
+    },
+    "./resolver-session": {
+      "types": "./dist/resolver-session.d.ts",
+      "import": "./dist/resolver-session.js",
+      "default": "./dist/resolver-session.js"
+    },
+    "./failover": {
+      "types": "./dist/failover.d.ts",
+      "import": "./dist/failover.js",
+      "default": "./dist/failover.js"
     },
     "./proof": {
+      "types": "./dist/proof.d.ts",
       "import": "./dist/proof.js",
-      "types": "./dist/proof.d.ts"
+      "default": "./dist/proof.js"
     },
     "./server-prover": {
+      "types": "./dist/server-prover.d.ts",
       "import": "./dist/server-prover.js",
-      "types": "./dist/server-prover.d.ts"
+      "default": "./dist/server-prover.js"
     },
     "./witness": {
+      "types": "./dist/witness.d.ts",
       "import": "./dist/witness.js",
-      "types": "./dist/witness.d.ts"
+      "default": "./dist/witness.js"
     },
     "./jwt": {
+      "types": "./dist/jwt.d.ts",
       "import": "./dist/jwt.js",
-      "types": "./dist/jwt.d.ts"
+      "default": "./dist/jwt.js"
     },
     "./admin": {
+      "types": "./dist/admin.d.ts",
       "import": "./dist/admin.js",
-      "types": "./dist/admin.d.ts"
+      "default": "./dist/admin.js"
     },
     "./delegate": {
+      "types": "./dist/delegate.d.ts",
       "import": "./dist/delegate.js",
-      "types": "./dist/delegate.d.ts"
+      "default": "./dist/delegate.js"
     },
     "./scopedSign": {
+      "types": "./dist/scopedSign.d.ts",
       "import": "./dist/scopedSign.js",
-      "types": "./dist/scopedSign.d.ts"
+      "default": "./dist/scopedSign.js"
     },
     "./frostVerify": {
+      "types": "./dist/frostVerify.d.ts",
       "import": "./dist/frostVerify.js",
-      "types": "./dist/frostVerify.d.ts"
+      "default": "./dist/frostVerify.js"
     },
     "./x402": {
+      "types": "./dist/x402.d.ts",
       "import": "./dist/x402.js",
-      "types": "./dist/x402.d.ts"
+      "default": "./dist/x402.js"
     },
     "./userop": {
+      "types": "./dist/userop.d.ts",
       "import": "./dist/userop.js",
-      "types": "./dist/userop.d.ts"
+      "default": "./dist/userop.js"
     },
     "./bundler": {
+      "types": "./dist/bundler.d.ts",
       "import": "./dist/bundler.js",
-      "types": "./dist/bundler.d.ts"
+      "default": "./dist/bundler.js"
     }
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc",
+    "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "bun run build"
+    "prepare": "npm run build"
   },
   "peerDependencies": {
     "viem": ">=2.0.0",

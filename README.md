@@ -57,23 +57,25 @@ The SDK ships with 19 subpath exports. Import the one you need; the entry point 
 | `./jwks` | JWKS fetch and key lookup |
 | `./bootstrap` | Bootstrap-group authentication wrapper |
 | `./authkey-session` | Auth-key certificate session — server-side flow that lets a backend authenticate with a long-lived ECDSA key instead of an OAuth bearer token |
+| `./failover` | Transport-tier node failover — retry another node when one is unreachable or 5xx, never on a verdict |
+| `./resolver-session` | On-chain auth resolver session (`onchain_resolver`) — SIWE login where a contract read decides the key namespace, so identity follows the wallet rather than the login provider |
 
 ### Keygen and signing
 
 | Subpath | Purpose |
 |---|---|
-| `./keygen` | Threshold keygen request (`keygen(config, keypair, claims, keySuffix?, identity?, curve?, scope?)`) |
+| `./keygen` | Threshold keygen request (`keygen(config, keypair, claims, keySuffix?, identity?, curve?, scope?)`) — `claims` is nullable; pass `null` when supplying `identity` |
 | `./admin` | Admin API auth — bootstrap-group FROST signing for admin endpoints |
 | `./delegate` | Mint and redeem delegation JWTs (`requestDelegation`, `authenticateWithDelegation`) for autonomous-agent flows |
 | `./scopedSign` | EIP-712 structured signing with scoped sub-keys (`signTypedData(...)`; `buildEIP712ScopeForTypedData` / `buildEIP712Scope` / `eip712TypeHash`; `CHAIN_PRESETS`) |
 | `./frostVerify` | Client-side FROST Schnorr verification (RFC 9591) — useful for tests and round-trip checks |
-| `./signature` | EVM signature helpers — `toEvmSignature` (maps `v` from {0,1} to {27,28}) and `eip191Digest` |
+| `./signature` | EVM signing — `signEvmDigest` (one call: EIP-191 envelope → request signing → POST → `v` normalization), plus its parts `toEvmSignature` and `eip191Digest` |
 
 ### ERC-4337 and payments
 
 | Subpath | Purpose |
 |---|---|
-| `./userop` | Build ERC-4337 v0.7 user operations and FROST-sign them |
+| `./userop` | Build ERC-4337 v0.7 user operations and threshold-sign them (FROST Schnorr, or ECDSA via `curve`) |
 | `./bundler` | JSON-RPC client for `signet-min-bundler` (send/estimate/receipt) |
 | `./x402` | `x402Fetch` — performs the full x402 dance (request → 402 → sign → retry) |
 
@@ -171,6 +173,103 @@ const signed = await signTypedData(
 
 // Use it for an x402 invoice
 const response = await x402Fetch("https://api.example.com/pay", { /* ... */ });
+```
+
+### C. On-chain auth resolver session (SIWE)
+
+```ts
+import { generateSessionKeypair } from "@oleary-labs/signet-sdk/session";
+import {
+  buildSiweMessage,
+  authenticateWithResolver,
+} from "@oleary-labs/signet-sdk/resolver-session";
+import { signEvmDigest } from "@oleary-labs/signet-sdk/signature";
+
+const keypair = await generateSessionKeypair();
+
+// The SDK owns the message format and the failure semantics; the caller owns
+// its signer and its RPC. Both arrive as callbacks.
+const params = {
+  sessionPubHex: keypair.publicKeyHex, // bare lowercase hex — never 0x-prefixed
+  siwe: {
+    domain: "app.example.org",   // must equal the nodes' configured siwe_domain
+    address: ownerEoaAddress,
+    chainId: 42220,              // the RESOLVER's chain, not the app's
+  },
+  // Called ONCE — the block pin is not part of the signed message, so a
+  // staleness retry reuses this signature instead of re-prompting the user.
+  signMessage: (message) => wallet.signMessage(message),
+  // Called once per attempt. Never cache the result.
+  getBlockPin: async () => {
+    const block = await celo.getBlock();
+    return { number: Number(block.number), hash: block.hash };
+  },
+};
+
+// Show the user exactly what they are signing.
+console.log(buildSiweMessage({ ...params.siwe, sessionPubHex: keypair.publicKeyHex }));
+
+const session = await authenticateWithResolver({ groupId, nodeUrl }, params);
+
+// `identity` is the opaque subject the resolver returned — a bytes32 the node
+// renders and namespaces under, NOT an address, even though SFLuv's resolver
+// packs a Safe address into it. Echo it verbatim and store it verbatim; never
+// rebuild the string. You choose the suffix; the subject comes from the
+// session and the "resolver:<addr>:" prefix is never client-side at all.
+const { signature } = await signEvmDigest(
+  { groupId, nodeUrl },
+  { keypair, hash: messageHash, identity: session.identity },
+);
+```
+
+`signEvmDigest` is the whole path in one call: it wraps the hash in the
+`personal_sign` envelope (pass `eip191: false` for an EIP-712 or EIP-3009
+digest, which carries its own `\x19\x01` prefix), pins
+`curve: "ecdsa_secp256k1"`, and normalizes `v` into {27,28} before returning.
+Each of those has a failure mode that is invisible in JS and only shows up as a
+reverted transaction. The underlying `signSignRequest` is still exported if you
+need to post the request yourself.
+
+`claims` is `IdTokenClaims | null` on every request-signing entry point. It is
+read only to build the `iss:sub` base of an OAuth key id, so any scheme that
+passes `identity` — auth-key certificate, delegation token, on-chain resolver,
+ZK proof — passes `null` instead of a stub object of empty strings. Passing
+neither throws rather than deriving `":"`.
+
+**One node is enough.** Nodes are symmetric: `/v1/auth` broadcasts a `msgAuth`
+coord message and every participant independently re-runs the SIWE recovery and
+the resolver read at the same pinned block rather than trusting the initiator.
+Because they all read at the pinned block they cannot reach different verdicts,
+so propagation is purely a timing question.
+
+That broadcast is asynchronous, so authenticating and then immediately signing
+against a *different* node can lose the race. Retry the sign once on a 401, or
+pass `barrierNodeUrls` to wait for the others first:
+
+```ts
+const session = await authenticateWithResolver(
+  { groupId, nodeUrl, barrierNodeUrls: nodeUrls },
+  params,
+);
+session.barrier?.filter((n) => !n.ok); // nodes that had not caught up yet
+```
+
+The barrier never changes the outcome — it only removes the wait. This path has
+a wider window than the other schemes, because each participant makes its own
+`eth_call` at the pinned block, so propagation is bounded by every node's RPC
+latency to the resolver's chain.
+
+For a rollout, `preflightResolverNodes` authenticates against each node
+individually and reports every outcome instead of throwing. It is a diagnostic,
+not the auth path: `/v1/info` advertises neither `siwe_domain` nor which chains
+a node has RPC for, and the initiator returns 200 on its own verification
+whether or not the participants can do the resolver read.
+
+```ts
+const report = await preflightResolverNodes({ groupId, nodeUrls }, params);
+for (const node of report) {
+  if (node.error?.isNodeMisconfiguration) console.warn(node.nodeUrl, node.error.code);
+}
 ```
 
 ### C. Admin signing via bootstrap group (FROST)
